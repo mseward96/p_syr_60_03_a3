@@ -1,0 +1,85 @@
+---
+title: "Assignment 3 Code"
+author: "Max Seward"
+format: html
+editor: visual
+---
+
+```{r}
+##load packages for data import and cleaning
+
+library(tidyverse)
+library(haven)
+
+#using haven to load dataset 
+Data <- read_sav("P6003.A4.SAV")
+view(Data) #visually inspecting data 
+#data is already in long format, approriate for repeated measures/LMM analysis
+```
+
+Data loaded in, is already formatted as long data on visual inspection. Analysis window below
+
+```{r}
+library(flexplot) #loading packages for analyses
+library(lme4)
+
+#visualizing univariate distributions
+flexplot(swl~1, data=Data) #satisfaction with life (SWL)
+flexplot(tipm.E~1, data=Data) #extraversion
+flexplot(tipm.N~1,data=Data) #neuroticism 
+
+#baseline linear mixed model - outcome with random intercept, no predictors using lme4
+
+baseline_mod <- lmer(swl~1 + (1|id),data = Data)
+summary(baseline_mod)
+
+#get icc for baseline model using flexplot
+icc(baseline_mod)
+# icc is .75 (75% of variance due to clusters) so definitley LMM 
+
+#create a reduced model for predictor variables i.e. only including them as fixed effects - we do NOT have a control variable identified through instructions or hypotheses so entering both predictors 
+
+fixed_mod <-lmer(swl~ tipm.E +tipm.N + (1|id), data=Data)
+summary(fixed_mod)
+
+#compare baseline model with reduced fixed effects model: do our predictors actually matter at all
+
+model.comparison(baseline_mod,fixed_mod)
+# fixed model fits better than baseline(no predictors), proceeding with adding effects/ nested model comparison
+
+
+#now a model with random effects : here we are saying there is an effect of extraversion and neurot on swl, and that *only* extraversion changes across participant.
+random_ext <- lmer(swl~tipm.E+tipm.N + (tipm.E|id),data= Data)
+summary(random_ext)
+#warning model failed to converge : ignore as per instructions 
+model.comparison(fixed_mod,random_ext) #comparing fixed slopes only vs adding extraversion as a random effct - output shows that adding extraversion as random effect is a better fit, continue to build
+
+#now, a linear mixed model with both predictors in the model as random effects as well, this is saying that extraversion and neuroticism have an effect on SWL, and that both change across participant
+
+random_full<- lmer(swl~tipm.E +tipm.N+ (tipm.E+tipm.N|id),data=Data)
+summary(random_full)
+
+#final model comparison to assess if adding neuroticism as a random slope is a better fit than not
+model.comparison(random_ext,random_full)
+
+# full model with both predictors as random effects is a better fit than having only extraversion vary within participants - proceed with estimates 
+
+```
+
+Nested model comparison complete, now will visualize model, assess diagnostics, retrieve summary /estimates
+
+```{r}
+
+library(performance) #load package to get r2 values later
+ ###
+
+#visualize final model that was chosen after nested model comparison
+
+visualize(random_full, plot ="model")
+
+#diagnostics 
+visualize(random_full, plot = "residuals")
+
+
+
+```
