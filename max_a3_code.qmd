@@ -27,9 +27,9 @@ library(lme4)
 flexplot(swl~1, data=Data) #satisfaction with life (SWL)
 flexplot(tipm.E~1, data=Data) #extraversion
 flexplot(tipm.N~1,data=Data) #neuroticism 
-flexplot(id~1,data=Data)
+flexplot(id~1,data=Data) 
 
-#mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
+#flexplot above for ID looks wrong. Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
 
 Data <- Data %>% mutate(id = factor(id))
 
@@ -119,6 +119,7 @@ library(performance) #load package to get r2 values later
 #r2 values using performance pkg
 r2(random_full)
 
+icc(random_full)
 #export model summary to apa table
 library(apaTables)
 
