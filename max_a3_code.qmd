@@ -28,12 +28,15 @@ flexplot(swl~1, data=Data) #satisfaction with life (SWL)
 flexplot(tipm.E~1, data=Data) #extraversion
 flexplot(tipm.N~1,data=Data) #neuroticism 
 flexplot(id~1,data=Data) 
+flexplot(day~1,data=Data)
 
 #flexplot above for ID looks wrong. Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
 
 Data <- Data %>% mutate(id = factor(id))
+Data <- Data %>% mutate(day=factor(day))
 
 flexplot(id~1, data=Data)
+flexplot(day~1, data=Data)
 #baseline linear mixed model - outcome with random intercept, no predictors using lme4
 
 
@@ -46,7 +49,7 @@ icc(baseline_mod)
 
 #create a reduced model for predictor variables i.e. only including them as fixed effects - we do NOT have a control variable identified through instructions or hypotheses so entering both predictors 
 
-fixed_mod <-lmer(swl~ tipm.E +tipm.N + (1|id), data=Data)
+fixed_mod <-lmer(swl~ tipm.E +tipm.N + day+ (1|id), data=Data)
 summary(fixed_mod)
 
 #compare baseline model with reduced fixed effects model: do our predictors actually matter at all?
@@ -63,7 +66,7 @@ model.comparison(fixed_mod,random_ext) #comparing fixed slopes only vs adding ex
 
 #now, a linear mixed model with both predictors in the model as random effects as well, this is saying that extraversion and neuroticism have an effect on SWL, and that both change across participant
 
-random_full<- lmer(swl~tipm.E +tipm.N+ (tipm.E+tipm.N|id),data=Data)
+random_full<- lmer(swl~tipm.E +tipm.N+ day + (tipm.E+tipm.N|id),data=Data)
 summary(random_full)
 
 #final model comparison to assess if adding neuroticism as a random slope is a better fit than not
@@ -128,5 +131,11 @@ library(apaTables)
 library(sjPlot) #for journal quality tables for mixed models, INSTALL if needed
 
 tab_model(random_full, file = "randomeffects.doc")
+
+##descriptive stats and bivariate correlations. on all observations 
+
+cortable<- select(Data, tipm.E,tipm.N,swl)
+
+apa.cor.table(cortable,table.number =1, filename="A3cor.doc")
 
 ```
