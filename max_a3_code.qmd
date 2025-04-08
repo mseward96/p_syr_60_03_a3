@@ -27,25 +27,32 @@ library(lme4)
 flexplot(swl~1, data=Data) #satisfaction with life (SWL)
 flexplot(tipm.E~1, data=Data) #extraversion
 flexplot(tipm.N~1,data=Data) #neuroticism 
+flexplot(id~1,data=Data)
 
+#mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
+
+Data <- Data %>% mutate(id = factor(id))
+
+flexplot(id~1, data=Data)
 #baseline linear mixed model - outcome with random intercept, no predictors using lme4
+
 
 baseline_mod <- lmer(swl~1 + (1|id),data = Data)
 summary(baseline_mod)
 
 #get icc for baseline model using flexplot
 icc(baseline_mod)
-# icc is .75 (75% of variance due to clusters) so definitley LMM 
+# icc is .74 (74% of variance due to clusters) so definitley LMM 
 
 #create a reduced model for predictor variables i.e. only including them as fixed effects - we do NOT have a control variable identified through instructions or hypotheses so entering both predictors 
 
 fixed_mod <-lmer(swl~ tipm.E +tipm.N + (1|id), data=Data)
 summary(fixed_mod)
 
-#compare baseline model with reduced fixed effects model: do our predictors actually matter at all
+#compare baseline model with reduced fixed effects model: do our predictors actually matter at all?
 
 model.comparison(baseline_mod,fixed_mod)
-# fixed model fits better than baseline(no predictors), proceeding with adding effects/ nested model comparison
+# fixed effects model fits better than baseline(no predictors), proceeding with adding effects/ nested model comparison
 
 
 #now a model with random effects : here we are saying there is an effect of extraversion and neurot on swl, and that *only* extraversion changes across participant.
@@ -66,20 +73,59 @@ model.comparison(random_ext,random_full)
 
 ```
 
-Nested model comparison complete, now will visualize model, assess diagnostics, retrieve summary /estimates
+Nested model comparison complete, now will visualize models to view relationships and diagnostics.
 
 ```{r}
 
-library(performance) #load package to get r2 values later
+
  ###
 
 #visualize final model that was chosen after nested model comparison
 
-visualize(random_full, plot ="model")
+visualize(random_full, plot ="model") #flexplot automatically plotting strongest predictor and binning by second predictor, showing fixed and random slop for extra version
+
+#visualizing ext only in random sample of 5 cases
+visualize(random_full, plot ="model", formula = swl~tipm.E |id, sample=5)
+#same but for only neuroticism, now we can see a visualization of what fixed effect for neuroticism is, outside of the estimates which tell us it's negative
+visualize(random_full, plot ="model", formula = swl~tipm.N |id, sample=5)
+
+#visualize fixed and random slopes together EXTRAVERSION in sample of 100 cases: color lines are random slopes for each ID, black line is fixe effect
+visualize(random_full, plot="model",
+          formula=swl~tipm.E +id, sample = 100)
+
+#finally, same visualization but for neuroticism
+visualize(random_full, plot="model",
+          formula=swl~tipm.N +id, sample = 100)
+
+#now we have a good idea of what effects look like. Does look like hypothesis 1 and 2 are confirmed. Ext + assciated with swl, neurot is negatively associated.#will continue with summary and esitmates to get values for these relationships 
 
 #diagnostics 
-visualize(random_full, plot = "residuals")
+visualize(random_full, plot = "residuals") #they look good
 
 
+```
+
+Now that we have visualized the model in multiple different ways to get an idea of what it looks like, will get coefficients for what the model is telling us
+
+```{r}
+#model summary
+summary(random_full)
+
+#flexplot estimates
+flexplot:: estimates(random_full)
+
+#load package for r2 vals
+library(performance) #load package to get r2 values later
+#r2 values using performance pkg
+r2(random_full)
+
+#export model summary to apa table
+library(apaTables)
+
+#mixed model output into table for writeup
+
+library(sjPlot) #for journal quality tables for mixed models, INSTALL if needed
+
+tab_model(random_full, file = "randomeffects.doc")
 
 ```
