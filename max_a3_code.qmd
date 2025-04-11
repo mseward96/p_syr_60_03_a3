@@ -23,6 +23,8 @@ Data loaded in, is already formatted as long data on visual inspection. Analysis
 library(flexplot) #loading packages for analyses
 library(lme4)
 
+
+
 #visualizing univariate distributions
 flexplot(swl~1, data=Data) #satisfaction with life (SWL)
 flexplot(tipm.E~1, data=Data) #extraversion
@@ -30,49 +32,72 @@ flexplot(tipm.N~1,data=Data) #neuroticism
 flexplot(id~1,data=Data) 
 flexplot(day~1,data=Data)
 
+
 #flexplot above for ID looks wrong. Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
 
 Data <- Data %>% mutate(id = factor(id))
-Data <- Data %>% mutate(day=factor(day))
-
 flexplot(id~1, data=Data)
-flexplot(day~1, data=Data)
 #baseline linear mixed model - outcome with random intercept, no predictors using lme4
 
 
 baseline_mod <- lmer(swl~1 + (1|id),data = Data)
 summary(baseline_mod)
 
+
 #get icc for baseline model using flexplot
 icc(baseline_mod)
 # icc is .74 (74% of variance due to clusters) so definitley LMM 
 
-#create a reduced model for predictor variables i.e. only including them as fixed effects - we do NOT have a control variable identified through instructions or hypotheses so entering both predictors 
+#create a reduced model for predictor variables i.e. only including them as fixed effects - series of nested models starts here 
 
-fixed_mod <-lmer(swl~ tipm.E +tipm.N + day+ (1|id), data=Data)
-summary(fixed_mod)
+fixed_ext<-lmer(swl~ tipm.E + (1|id), data=Data)
+summary(fixed_ext)
 
-#compare baseline model with reduced fixed effects model: do our predictors actually matter at all?
-
-model.comparison(baseline_mod,fixed_mod)
-# fixed effects model fits better than baseline(no predictors), proceeding with adding effects/ nested model comparison
-
-
-#now a model with random effects : here we are saying there is an effect of extraversion and neurot on swl, and that *only* extraversion changes across participant.
-random_ext <- lmer(swl~tipm.E+tipm.N + (tipm.E|id),data= Data)
+#add extraversion as random slope
+random_ext <- lmer(swl~tipm.E + (tipm.E|id), data= Data)
 summary(random_ext)
-#warning model failed to converge : ignore as per instructions 
-model.comparison(fixed_mod,random_ext) #comparing fixed slopes only vs adding extraversion as a random effct - output shows that adding extraversion as random effect is a better fit, continue to build
 
-#now, a linear mixed model with both predictors in the model as random effects as well, this is saying that extraversion and neuroticism have an effect on SWL, and that both change across participant
+#compare
+model.comparison(fixed_ext,random_ext) #model with random effect is better fit
 
-random_full<- lmer(swl~tipm.E +tipm.N+ day + (tipm.E+tipm.N|id),data=Data)
-summary(random_full)
+#add neuroticism as a fixed slope
 
-#final model comparison to assess if adding neuroticism as a random slope is a better fit than not
-model.comparison(random_ext,random_full)
+fixed_neuro<- lmer(swl~tipm.E + tipm.N + (tipm.E|id),data=Data)
+summary(fixed_neuro)
 
-# full model with both predictors as random effects is a better fit than having only extraversion vary within participants - proceed with estimates 
+#compare model with neuro added as a fixed effect
+
+model.comparison(random_ext,fixed_neuro) #adding neuro is a better fit 
+#add neurot as random effect
+random_neuro<- lmer(swl~tipm.E + tipm.N + (tipm.E+tipm.N|id),data=Data)
+summary(random_neuro)
+#compare again
+
+model.comparison(fixed_neuro,random_neuro) #comparing model with neuro as fixed and random vs only fixed - model with neuro as fixed and random is better fit by coefficients
+
+#now want to add time /days;add day as fixed slope first
+
+fixed_day <- lmer(swl~tipm.E + tipm.N + day + (tipm.E+tipm.N|id),data=Data)
+summary(fixed_day)
+#compare model with day added, to last model 
+
+model.comparison(random_neuro, fixed_day)
+#interestingly, NOT having day added as fixed factor is a better fit , try adding as only a random slope- tricky: aic, bic and bayes are all closer than usual
+
+#still NEED day to answer H3 about "within subjects over time" so day needs to be in the model. Moving on :
+
+#now will add day as a random slope, and compare it to both; 
+#1)model with day as fixed only(fixed_day), and 2) model without day(Random_neuro)
+
+random_day<- lmer(swl~ tipm.E + tipm.N + day+(tipm.E+tipm.N+day|id),data=Data)
+summary(random_day)
+
+#now compare model with day as fized and random with model without day as slopes
+model.comparison(random_neuro,random_day) # Better fit than random_neuro once day is added as both fixed and random slope 
+model.comparison(fixed_day,random_day)
+
+### random_day is our full model, supported by nested model comparison
+
 
 ```
 
@@ -83,27 +108,30 @@ Nested model comparison complete, now will visualize models to view relationship
 
  ###
 
-#visualize final model that was chosen after nested model comparison
+#visualize final model (random_day) that was chosen after nested model comparison
 
-visualize(random_full, plot ="model") #flexplot automatically plotting strongest predictor and binning by second predictor, showing fixed and random slop for extra version
+visualize(random_day, plot ="model") #flexplot automatically plotting strongest predictor and binning by second predictor, showing fixed and random slop for extra version
 
 #visualizing ext only in random sample of 5 cases
-visualize(random_full, plot ="model", formula = swl~tipm.E |id, sample=5)
+visualize(random_day, plot ="model", formula = swl~tipm.E |id, sample=5)
 #same but for only neuroticism, now we can see a visualization of what fixed effect for neuroticism is, outside of the estimates which tell us it's negative
-visualize(random_full, plot ="model", formula = swl~tipm.N |id, sample=5)
+visualize(random_day, plot ="model", formula = swl~tipm.N |id, sample=5)
 
 #visualize fixed and random slopes together EXTRAVERSION in sample of 100 cases: color lines are random slopes for each ID, black line is fixe effect
-visualize(random_full, plot="model",
+visualize(random_day, plot="model",
           formula=swl~tipm.E +id, sample = 100)
 
+
 #finally, same visualization but for neuroticism
-visualize(random_full, plot="model",
+visualize(random_day, plot="model",
           formula=swl~tipm.N +id, sample = 100)
 
+visualize(random_day, plot="model",
+          formula=swl~day +id, sample=100)
 #now we have a good idea of what effects look like. Does look like hypothesis 1 and 2 are confirmed. Ext + assciated with swl, neurot is negatively associated.#will continue with summary and esitmates to get values for these relationships 
 
 #diagnostics 
-visualize(random_full, plot = "residuals") #they look good
+visualize(random_day, plot = "residuals") #they look good
 
 
 ```
@@ -112,17 +140,22 @@ Now that we have visualized the model in multiple different ways to get an idea 
 
 ```{r}
 #model summary
-summary(random_full)
+summary(random_day)
 
 #flexplot estimates
-flexplot:: estimates(random_full)
+flexplot:: estimates(random_day)
 
 #load package for r2 vals
 library(performance) #load package to get r2 values later
 #r2 values using performance pkg
-r2(random_full)
+r2(random_day)
 
-icc(random_full)
+#examine random slopes
+random_effects <- ranef(random_day)
+random_slopes<- random_effects$id[, c("tipm.E", "tipm.N", "day")]
+print(random_slopes)
+
+icc(random_day)
 #export model summary to apa table
 library(apaTables)
 
@@ -130,12 +163,49 @@ library(apaTables)
 
 library(sjPlot) #for journal quality tables for mixed models, INSTALL if needed
 
-tab_model(random_full, file = "randomeffects.doc")
+tab_model(random_day, file = "randomeffects.doc")
 
 ##descriptive stats and bivariate correlations. on all observations 
 
-cortable<- select(Data, tipm.E,tipm.N,swl)
+cortable<- select(Data, day, tipm.E,tipm.N,swl)
 
 apa.cor.table(cortable,table.number =1, filename="A3cor.doc")
 
 ```
+
+experimenting box
+
+```{r}
+# i am trying to figure out what to do with time. I want to see what's happening over time
+
+# i want to create between subjects and within subjects variables 
+
+newdata <- Data %>% #for extraversion , person centering to get within subjects effect
+  group_by(id) %>%
+  mutate(extra_between = mean(tipm.E),
+         ex_within = tipm.E - extra_between)
+newdata<-newdata %>%
+  group_by(id)%>%
+  mutate(neuro_between=mean(tipm.N),
+         neuro_within= tipm.N-neuro_between)
+
+view(newdata)
+
+# now model within and btween subjects effects
+
+w_b_mod<- lmer(swl~extra_between +ex_within + #level 1 and 2 for extraversion
+                 neuro_between + neuro_within+ (extra_between+ex_within+neuro_between+ neuro_within|id),data=newdata) #level 1 and 2 for neuro, adding all as random slopes because we know they vary within people 
+summary(w_b_mod)
+
+tab_model(w_b_mod, file = "winbtwneffects.doc")
+
+visualize(w_b_mod,plot="model", formula = swl~extra_between +id, sample=10)
+visualize(w_b_mod,plot="model", formula = swl~ex_within +id, sample=10)
+visualize(w_b_mod,plot="model", formula = swl~neuro_between +id, sample=10)
+visualize(w_b_mod,plot="model", formula = swl~neuro_within +id, sample=10)
+
+### create agg variable for level two and mean centre to get level 2 effects 
+
+```
+
+# n
