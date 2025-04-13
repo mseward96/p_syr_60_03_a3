@@ -132,7 +132,7 @@ visualize(random_day, plot="model",
 
 #diagnostics 
 visualize(random_day, plot = "residuals") #they look good
-
+coef(random_day)
 
 ```
 
@@ -150,10 +150,6 @@ library(performance) #load package to get r2 values later
 #r2 values using performance pkg
 r2(random_day)
 
-#examine random slopes
-random_effects <- ranef(random_day)
-random_slopes<- random_effects$id[, c("tipm.E", "tipm.N", "day")]
-print(random_slopes)
 
 icc(random_day)
 #export model summary to apa table
