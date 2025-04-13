@@ -32,6 +32,10 @@ flexplot(tipm.N~1,data=Data) #neuroticism
 flexplot(id~1,data=Data) 
 flexplot(day~1,data=Data)
 
+flexplot(swl~tipm.E, data=Data) #visualizing single variable predictions
+flexplot(swl~tipm.N, data=Data)
+
+#visually, there are very clear clusters so we  want to consider mixed models
 
 #flexplot above for ID looks wrong. Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
 
@@ -39,7 +43,7 @@ Data <- Data %>% mutate(id = factor(id))
 flexplot(id~1, data=Data)
 #baseline linear mixed model - outcome with random intercept, no predictors using lme4
 
-
+#baseline mode, ID is cluster variable : data is clustered beacuase of repeated measures in indviduals over time 
 baseline_mod <- lmer(swl~1 + (1|id),data = Data)
 summary(baseline_mod)
 
@@ -75,28 +79,9 @@ summary(random_neuro)
 
 model.comparison(fixed_neuro,random_neuro) #comparing model with neuro as fixed and random vs only fixed - model with neuro as fixed and random is better fit by coefficients
 
-#now want to add time /days;add day as fixed slope first
+#
 
-fixed_day <- lmer(swl~tipm.E + tipm.N + day + (tipm.E+tipm.N|id),data=Data)
-summary(fixed_day)
-#compare model with day added, to last model 
-
-model.comparison(random_neuro, fixed_day)
-#interestingly, NOT having day added as fixed factor is a better fit , try adding as only a random slope- tricky: aic, bic and bayes are all closer than usual
-
-#still NEED day to answer H3 about "within subjects over time" so day needs to be in the model. Moving on :
-
-#now will add day as a random slope, and compare it to both; 
-#1)model with day as fixed only(fixed_day), and 2) model without day(Random_neuro)
-
-random_day<- lmer(swl~ tipm.E + tipm.N + day+(tipm.E+tipm.N+day|id),data=Data)
-summary(random_day)
-
-#now compare model with day as fized and random with model without day as slopes
-model.comparison(random_neuro,random_day) # Better fit than random_neuro once day is added as both fixed and random slope 
-model.comparison(fixed_day,random_day)
-
-### random_day is our full model, supported by nested model comparison
+### random_neuro is our full model, supported by nested model comparison
 
 
 ```
@@ -108,31 +93,30 @@ Nested model comparison complete, now will visualize models to view relationship
 
  ###
 
-#visualize final model (random_day) that was chosen after nested model comparison
+#visualize final model (random_neuro) that was chosen after nested model comparison
 
-visualize(random_day, plot ="model") #flexplot automatically plotting strongest predictor and binning by second predictor, showing fixed and random slop for extra version
+visualize(random_neuro, plot ="model") #flexplot automatically plotting strongest predictor and binning by second predictor, showing fixed and random slop for extra version
 
 #visualizing ext only in random sample of 5 cases
-visualize(random_day, plot ="model", formula = swl~tipm.E |id, sample=5)
+visualize(random_neuro, plot ="model", formula = swl~tipm.E |id, sample=5)
 #same but for only neuroticism, now we can see a visualization of what fixed effect for neuroticism is, outside of the estimates which tell us it's negative
-visualize(random_day, plot ="model", formula = swl~tipm.N |id, sample=5)
+visualize(random_neuro, plot ="model", formula = swl~tipm.N |id, sample=5)
 
 #visualize fixed and random slopes together EXTRAVERSION in sample of 100 cases: color lines are random slopes for each ID, black line is fixe effect
-visualize(random_day, plot="model",
-          formula=swl~tipm.E +id, sample = 100)
+visualize(random_neuro, plot="model",
+          formula=swl~tipm.E +id, sample = 10)
 
 
 #finally, same visualization but for neuroticism
-visualize(random_day, plot="model",
-          formula=swl~tipm.N +id, sample = 100)
+visualize(random_neuro, plot="model",
+          formula=swl~tipm.N +id, sample = 10)
 
-visualize(random_day, plot="model",
-          formula=swl~day +id, sample=100)
+
 #now we have a good idea of what effects look like. Does look like hypothesis 1 and 2 are confirmed. Ext + assciated with swl, neurot is negatively associated.#will continue with summary and esitmates to get values for these relationships 
 
 #diagnostics 
-visualize(random_day, plot = "residuals") #they look good
-coef(random_day)
+visualize(random_neuro, plot = "residuals") #they look good
+
 
 ```
 
@@ -140,18 +124,18 @@ Now that we have visualized the model in multiple different ways to get an idea 
 
 ```{r}
 #model summary
-summary(random_day)
+summary(random_neuro)
 
 #flexplot estimates
-flexplot:: estimates(random_day)
+flexplot:: estimates(random_neuro) ### this is the most important/helpful panel for interpretation
 
 #load package for r2 vals
 library(performance) #load package to get r2 values later
 #r2 values using performance pkg
-r2(random_day)
+r2(random_neuro)
 
 
-icc(random_day)
+icc(random_neuro)
 #export model summary to apa table
 library(apaTables)
 
@@ -159,13 +143,29 @@ library(apaTables)
 
 library(sjPlot) #for journal quality tables for mixed models, INSTALL if needed
 
-tab_model(random_day, file = "randomeffects.doc")
+tab_model(random_neuro, file = "randomeffects.doc")
 
 ##descriptive stats and bivariate correlations. on all observations 
 
 cortable<- select(Data, day, tipm.E,tipm.N,swl)
 
 apa.cor.table(cortable,table.number =1, filename="A3cor.doc")
+
+##plots for write up 
+#extraversion
+explot<- visualize(random_neuro, plot="model",
+          formula=swl~tipm.E +id, sample = 5)+
+          theme_classic()
+
+print(explot)
+
+#plot for neurot
+
+Nplot<-visualize(random_neuro, plot="model",
+          formula=swl~tipm.N +id, sample = 5) +
+          theme_classic()
+
+print(Nplot)
 
 ```
 
