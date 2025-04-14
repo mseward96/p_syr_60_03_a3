@@ -19,6 +19,8 @@ view(Data) #visually inspecting data
 
 Data loaded in, is already formatted as long data on visual inspection. Analysis window below
 
+lme4
+
 ```{r}
 library(flexplot) #loading packages for analyses
 library(lme4)
@@ -35,6 +37,7 @@ flexplot(day~1,data=Data)
 flexplot(swl~tipm.E, data=Data) #visualizing single variable predictions
 flexplot(swl~tipm.N, data=Data)
 
+
 #visually, there are very clear clusters so we  want to consider mixed models
 
 #flexplot above for ID looks wrong. Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
@@ -43,7 +46,18 @@ Data <- Data %>% mutate(id = factor(id))
 flexplot(id~1, data=Data)
 #baseline linear mixed model - outcome with random intercept, no predictors using lme4
 
+#Standardizing predictors, as learned in lab 10: this way all coefficients are on same scale and it is easier to compare effect sizes when time to interpret the model
+
+Data$tipm.E2<- scale(Data$tipm.E, center =TRUE, scale =TRUE) #tipm.e
+Data$tipm.N2<- scale(Data$tipm.N, center =TRUE, scale =TRUE) #neuro
+
+
+
+
+
+#baseline linear mixed model - outcome with random intercept, no predictors using lme4
 #baseline mode, ID is cluster variable : data is clustered beacuase of repeated measures in indviduals over time 
+
 baseline_mod <- lmer(swl~1 + (1|id),data = Data)
 summary(baseline_mod)
 
@@ -52,28 +66,31 @@ summary(baseline_mod)
 icc(baseline_mod)
 # icc is .74 (74% of variance due to clusters) so definitley LMM 
 
-#create a reduced model for predictor variables i.e. only including them as fixed effects - series of nested models starts here 
+#create a reduced model for predictor variables i.e. only including them as fixed effects - series of nested models starts here : ADD fixed effect, compare, add random effect ,compare, etc.  
 
-fixed_ext<-lmer(swl~ tipm.E + (1|id), data=Data)
+fixed_ext<-lmer(swl~ tipm.E2 + (1|id), data=Data)
 summary(fixed_ext)
 
-#add extraversion as random slope
-random_ext <- lmer(swl~tipm.E + (tipm.E|id), data= Data)
+#compare baseline with added fixed slope for extraversion
+model.comparison(baseline_mod,fixed_ext)
+
+#fixed_ext is supported: now add extraversion as random slope
+random_ext <- lmer(swl~tipm.E2 + (tipm.E2|id), data= Data)
 summary(random_ext)
 
 #compare
-model.comparison(fixed_ext,random_ext) #model with random effect is better fit
+model.comparison(fixed_ext,random_ext) #random_ext is supported, NOW add neurot as fixed slope first
 
 #add neuroticism as a fixed slope
 
-fixed_neuro<- lmer(swl~tipm.E + tipm.N + (tipm.E|id),data=Data)
+fixed_neuro<- lmer(swl~tipm.E2 + tipm.N2 + (tipm.E2|id),data=Data)
 summary(fixed_neuro)
 
 #compare model with neuro added as a fixed effect
 
-model.comparison(random_ext,fixed_neuro) #adding neuro is a better fit 
-#add neurot as random effect
-random_neuro<- lmer(swl~tipm.E + tipm.N + (tipm.E+tipm.N|id),data=Data)
+model.comparison(random_ext,fixed_neuro) #adding neuro is a better fit, continue!
+#add neurot as random effect as well 
+random_neuro<- lmer(swl~tipm.E2 + tipm.N2 + (tipm.E2+tipm.N2|id),data=Data)
 summary(random_neuro)
 #compare again
 
@@ -81,7 +98,7 @@ model.comparison(fixed_neuro,random_neuro) #comparing model with neuro as fixed 
 
 #
 
-### random_neuro is our full model, supported by nested model comparison
+### random_neuro is our full model, supported by nested model comparisons
 
 
 ```
@@ -98,18 +115,18 @@ Nested model comparison complete, now will visualize models to view relationship
 visualize(random_neuro, plot ="model") #flexplot automatically plotting strongest predictor and binning by second predictor, showing fixed and random slop for extra version
 
 #visualizing ext only in random sample of 5 cases
-visualize(random_neuro, plot ="model", formula = swl~tipm.E |id, sample=5)
+visualize(random_neuro, plot ="model", formula = swl~tipm.E2 |id, sample=5)
 #same but for only neuroticism, now we can see a visualization of what fixed effect for neuroticism is, outside of the estimates which tell us it's negative
-visualize(random_neuro, plot ="model", formula = swl~tipm.N |id, sample=5)
+visualize(random_neuro, plot ="model", formula = swl~tipm.N2 |id, sample=5)
 
 #visualize fixed and random slopes together EXTRAVERSION in sample of 100 cases: color lines are random slopes for each ID, black line is fixe effect
 visualize(random_neuro, plot="model",
-          formula=swl~tipm.E +id, sample = 10)
+          formula=swl~tipm.E2 +id, sample = 10)
 
 
 #finally, same visualization but for neuroticism
 visualize(random_neuro, plot="model",
-          formula=swl~tipm.N +id, sample = 10)
+          formula=swl~tipm.N2 +id, sample = 10)
 
 
 #now we have a good idea of what effects look like. Does look like hypothesis 1 and 2 are confirmed. Ext + assciated with swl, neurot is negatively associated.#will continue with summary and esitmates to get values for these relationships 
@@ -117,14 +134,20 @@ visualize(random_neuro, plot="model",
 #diagnostics 
 visualize(random_neuro, plot = "residuals") #they look good
 
-
+check_collinearity(random_neuro) # checking for multicolinearity
 ```
 
 Now that we have visualized the model in multiple different ways to get an idea of what it looks like, will get coefficients for what the model is telling us
 
+assumplot\<- visualize(random_neuro, plot = "residuals") #they look good
+
+\+ theme_classic()
+
+print(assumplot)
+
 ```{r}
 #model summary
-summary(random_neuro)
+summary(random_neuro) # some estimates from here
 
 #flexplot estimates
 flexplot:: estimates(random_neuro) ### this is the most important/helpful panel for interpretation
@@ -143,7 +166,7 @@ library(apaTables)
 
 library(sjPlot) #for journal quality tables for mixed models, INSTALL if needed
 
-tab_model(random_neuro, file = "randomeffects.doc")
+tab_model(random_neuro, file = "randomeffects.doc") # edit table after to include a mix of flexplot esitmates  and summary 
 
 ##descriptive stats and bivariate correlations. on all observations 
 
@@ -154,54 +177,32 @@ apa.cor.table(cortable,table.number =1, filename="A3cor.doc")
 ##plots for write up 
 #extraversion
 explot<- visualize(random_neuro, plot="model",
-          formula=swl~tipm.E +id, sample = 5)+
-          theme_classic()
+          formula=swl~tipm.E2 +id, sample = 5)+
+          theme_classic() +
+  labs(
+    x = "Extraversion",  #  x-axis label
+    y = "Satisfaction With Life"   #  y-axis label
+  )
 
 print(explot)
 
 #plot for neurot
 
 Nplot<-visualize(random_neuro, plot="model",
-          formula=swl~tipm.N +id, sample = 5) +
-          theme_classic()
+          formula=swl~tipm.N2 +id, sample = 5) +
+          theme_classic()+
+labs(
+    x = "Neuroticism",  #  x-axis label
+    y = "Satisfaction With Life"   #  y-axis label
+  )
 
 print(Nplot)
 
-```
+assumplot<- visualize(random_neuro, plot = "residuals")+ #plot for appendix
+theme_classic()
 
-experimenting box
+print(assumplot)
 
-```{r}
-# i am trying to figure out what to do with time. I want to see what's happening over time
-
-# i want to create between subjects and within subjects variables 
-
-newdata <- Data %>% #for extraversion , person centering to get within subjects effect
-  group_by(id) %>%
-  mutate(extra_between = mean(tipm.E),
-         ex_within = tipm.E - extra_between)
-newdata<-newdata %>%
-  group_by(id)%>%
-  mutate(neuro_between=mean(tipm.N),
-         neuro_within= tipm.N-neuro_between)
-
-view(newdata)
-
-# now model within and btween subjects effects
-
-w_b_mod<- lmer(swl~extra_between +ex_within + #level 1 and 2 for extraversion
-                 neuro_between + neuro_within+ (extra_between+ex_within+neuro_between+ neuro_within|id),data=newdata) #level 1 and 2 for neuro, adding all as random slopes because we know they vary within people 
-summary(w_b_mod)
-
-tab_model(w_b_mod, file = "winbtwneffects.doc")
-
-visualize(w_b_mod,plot="model", formula = swl~extra_between +id, sample=10)
-visualize(w_b_mod,plot="model", formula = swl~ex_within +id, sample=10)
-visualize(w_b_mod,plot="model", formula = swl~neuro_between +id, sample=10)
-visualize(w_b_mod,plot="model", formula = swl~neuro_within +id, sample=10)
-
-### create agg variable for level two and mean centre to get level 2 effects 
+#check
 
 ```
-
-# n
