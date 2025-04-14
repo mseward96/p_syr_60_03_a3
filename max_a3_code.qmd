@@ -40,7 +40,7 @@ flexplot(swl~tipm.N, data=Data)
 
 #visually, there are very clear clusters so we  want to consider mixed models
 
-#flexplot above for ID looks wrong. Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
+#flexplot above for ID looks iffy; Now mutating ID to a factor variable so that it is not interpreted as continious numerical variable by flexplot / lmer
 
 Data <- Data %>% mutate(id = factor(id))
 flexplot(id~1, data=Data)
@@ -195,6 +195,5 @@ theme_classic()
 
 print(assumplot)
 
-#check
 
 ```
