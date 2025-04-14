@@ -137,14 +137,6 @@ visualize(random_neuro, plot = "residuals") #they look good
 check_collinearity(random_neuro) # checking for multicolinearity
 ```
 
-Now that we have visualized the model in multiple different ways to get an idea of what it looks like, will get coefficients for what the model is telling us
-
-assumplot\<- visualize(random_neuro, plot = "residuals") #they look good
-
-\+ theme_classic()
-
-print(assumplot)
-
 ```{r}
 #model summary
 summary(random_neuro) # some estimates from here
